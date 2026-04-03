@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase";
+
 export type ToolCallInfo = {
   name: string;
   args: Record<string, unknown>;
@@ -18,8 +20,24 @@ export type Conversation = {
   createdAt: number;
 };
 
-const CONVERSATIONS_KEY = "ai-chat-conversations";
-const LEGACY_KEY = "ai-chat-messages";
+type ConversationRow = {
+  id: string;
+  title: string;
+  messages: unknown;
+  created_at: number;
+};
+
+function rowToConversation(row: ConversationRow): Conversation {
+  const messages = Array.isArray(row.messages)
+    ? (row.messages as Message[])
+    : [];
+  return {
+    id: row.id,
+    title: row.title,
+    messages,
+    createdAt: row.created_at,
+  };
+}
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -32,47 +50,14 @@ function titleFromMessages(messages: Message[]): string {
   return text.length > 30 ? text.slice(0, 30) + "..." : text;
 }
 
-export function loadConversations(): Conversation[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(CONVERSATIONS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Conversation[];
-      return parsed.map((c) => ({
-        ...c,
-        messages: Array.isArray(c.messages) ? c.messages : [],
-      }));
-    }
+export async function loadConversations(): Promise<Conversation[]> {
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) {
-      const msgs = JSON.parse(legacy) as Message[];
-      if (msgs.length > 0) {
-        const migrated: Conversation = {
-          id: generateId(),
-          title: titleFromMessages(msgs),
-          messages: msgs,
-          createdAt: Date.now(),
-        };
-        const list = [migrated];
-        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(list));
-        localStorage.removeItem(LEGACY_KEY);
-        return list;
-      }
-    }
-
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveConversations(conversations: Conversation[]) {
-  try {
-    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
-  } catch {
-    /* localStorage full or unavailable */
-  }
+  if (error || !data) return [];
+  return (data as ConversationRow[]).map(rowToConversation);
 }
 
 export function createConversation(): Conversation {
@@ -84,24 +69,26 @@ export function createConversation(): Conversation {
   };
 }
 
-export function updateConversationMessages(
-  conversations: Conversation[],
-  id: string,
-  messages: Message[],
-): Conversation[] {
-  return conversations.map((c) => {
-    if (c.id !== id) return c;
-    return {
-      ...c,
-      messages,
-      title: messages.length > 0 ? titleFromMessages(messages) : c.title,
-    };
+export async function saveConversation(conv: Conversation): Promise<void> {
+  await supabase.from("conversations").upsert({
+    id: conv.id,
+    title: conv.title,
+    messages: conv.messages,
+    created_at: conv.createdAt,
   });
 }
 
-export function deleteConversation(
-  conversations: Conversation[],
+export async function updateConversationMessages(
   id: string,
-): Conversation[] {
-  return conversations.filter((c) => c.id !== id);
+  messages: Message[],
+): Promise<void> {
+  const title = messages.length > 0 ? titleFromMessages(messages) : "새 대화";
+  await supabase
+    .from("conversations")
+    .update({ messages, title })
+    .eq("id", id);
+}
+
+export async function deleteConversation(id: string): Promise<void> {
+  await supabase.from("conversations").delete().eq("id", id);
 }

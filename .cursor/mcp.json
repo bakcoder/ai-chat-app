@@ -6,6 +6,9 @@
         },
         "my-mcp-server": {
             "url": "https://typescript-mcp-server-boilerplate-i-xi.vercel.app/api/mcp"
+        },
+        "supabase": {
+            "url": "https://mcp.supabase.com/mcp?project_ref=ssnlvrgwbnwandxzfbjl&features=docs%2Caccount%2Cdatabase%2Cdebugging"
         }
     }
 }

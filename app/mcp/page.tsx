@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -45,7 +45,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   loadMcpServers,
-  saveMcpServers,
+  saveMcpServer,
   createMcpServer,
   updateMcpServer,
   deleteMcpServer,
@@ -123,7 +123,7 @@ export default function McpPage() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    setServers(loadMcpServers());
+    loadMcpServers().then(setServers);
   }, []);
 
   // Poll connection statuses
@@ -147,11 +147,6 @@ export default function McpPage() {
     };
   }, []);
 
-  const persist = useCallback((next: McpServer[]) => {
-    setServers(next);
-    saveMcpServers(next);
-  }, []);
-
   function openCreate() {
     setEditingId(null);
     setForm({ ...EMPTY_FORM });
@@ -166,7 +161,8 @@ export default function McpPage() {
 
   function handleDelete(id: string) {
     handleDisconnect(id);
-    persist(deleteMcpServer(servers, id));
+    setServers((prev) => prev.filter((s) => s.id !== id));
+    deleteMcpServer(id);
   }
 
   function isValid(): boolean {
@@ -179,42 +175,36 @@ export default function McpPage() {
   function handleSave() {
     if (!isValid()) return;
 
+    const partialData = {
+      name: form.name.trim(),
+      transport: form.transport,
+      httpConfig:
+        form.transport === "streamable-http"
+          ? { url: form.url.trim(), headers: kvToRecord(form.headers) }
+          : undefined,
+      stdioConfig:
+        form.transport === "stdio"
+          ? {
+              command: form.command.trim(),
+              args: form.args.filter((a) => a.trim()),
+              env: kvToRecord(form.env),
+            }
+          : undefined,
+    };
+
     if (editingId) {
-      const data: Partial<McpServer> = {
-        name: form.name.trim(),
-        transport: form.transport,
-        httpConfig:
-          form.transport === "streamable-http"
-            ? { url: form.url.trim(), headers: kvToRecord(form.headers) }
-            : undefined,
-        stdioConfig:
-          form.transport === "stdio"
-            ? {
-                command: form.command.trim(),
-                args: form.args.filter((a) => a.trim()),
-                env: kvToRecord(form.env),
-              }
-            : undefined,
-      };
-      persist(updateMcpServer(servers, editingId, data));
+      setServers((prev) =>
+        prev.map((s) =>
+          s.id === editingId
+            ? { ...s, ...partialData, updatedAt: Date.now() }
+            : s,
+        ),
+      );
+      updateMcpServer(editingId, partialData);
     } else {
-      const server = createMcpServer({
-        name: form.name.trim(),
-        transport: form.transport,
-        httpConfig:
-          form.transport === "streamable-http"
-            ? { url: form.url.trim(), headers: kvToRecord(form.headers) }
-            : undefined,
-        stdioConfig:
-          form.transport === "stdio"
-            ? {
-                command: form.command.trim(),
-                args: form.args.filter((a) => a.trim()),
-                env: kvToRecord(form.env),
-              }
-            : undefined,
-      });
-      persist([...servers, server]);
+      const server = createMcpServer(partialData);
+      setServers((prev) => [...prev, server]);
+      saveMcpServer(server);
     }
 
     setDialogOpen(false);

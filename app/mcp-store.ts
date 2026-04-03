@@ -1,3 +1,5 @@
+import { supabase } from "@/lib/supabase";
+
 export type McpTransportType = "streamable-http" | "stdio";
 
 export type McpHttpConfig = {
@@ -21,29 +23,40 @@ export type McpServer = {
   updatedAt: number;
 };
 
-const STORAGE_KEY = "mcp-servers";
+type McpServerRow = {
+  id: string;
+  name: string;
+  transport: string;
+  http_config: unknown;
+  stdio_config: unknown;
+  created_at: number;
+  updated_at: number;
+};
+
+function rowToMcpServer(row: McpServerRow): McpServer {
+  return {
+    id: row.id,
+    name: row.name,
+    transport: row.transport as McpTransportType,
+    httpConfig: (row.http_config as McpHttpConfig) ?? undefined,
+    stdioConfig: (row.stdio_config as McpStdioConfig) ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-export function loadMcpServers(): McpServer[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as McpServer[];
-    return [];
-  } catch {
-    return [];
-  }
-}
+export async function loadMcpServers(): Promise<McpServer[]> {
+  const { data, error } = await supabase
+    .from("mcp_servers")
+    .select("*")
+    .order("updated_at", { ascending: false });
 
-export function saveMcpServers(servers: McpServer[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(servers));
-  } catch {
-    /* localStorage full or unavailable */
-  }
+  if (error || !data) return [];
+  return (data as McpServerRow[]).map(rowToMcpServer);
 }
 
 export function createMcpServer(
@@ -53,17 +66,31 @@ export function createMcpServer(
   return { ...data, id: generateId(), createdAt: now, updatedAt: now };
 }
 
-export function updateMcpServer(
-  servers: McpServer[],
-  id: string,
-  data: Partial<Omit<McpServer, "id" | "createdAt" | "updatedAt">>,
-): McpServer[] {
-  return servers.map((s) => {
-    if (s.id !== id) return s;
-    return { ...s, ...data, updatedAt: Date.now() };
+export async function saveMcpServer(server: McpServer): Promise<void> {
+  await supabase.from("mcp_servers").upsert({
+    id: server.id,
+    name: server.name,
+    transport: server.transport,
+    http_config: server.httpConfig ?? null,
+    stdio_config: server.stdioConfig ?? null,
+    created_at: server.createdAt,
+    updated_at: server.updatedAt,
   });
 }
 
-export function deleteMcpServer(servers: McpServer[], id: string): McpServer[] {
-  return servers.filter((s) => s.id !== id);
+export async function updateMcpServer(
+  id: string,
+  data: Partial<Omit<McpServer, "id" | "createdAt" | "updatedAt">>,
+): Promise<void> {
+  const update: Record<string, unknown> = { updated_at: Date.now() };
+  if (data.name !== undefined) update.name = data.name;
+  if (data.transport !== undefined) update.transport = data.transport;
+  if (data.httpConfig !== undefined) update.http_config = data.httpConfig ?? null;
+  if (data.stdioConfig !== undefined) update.stdio_config = data.stdioConfig ?? null;
+
+  await supabase.from("mcp_servers").update(update).eq("id", id);
+}
+
+export async function deleteMcpServer(id: string): Promise<void> {
+  await supabase.from("mcp_servers").delete().eq("id", id);
 }
