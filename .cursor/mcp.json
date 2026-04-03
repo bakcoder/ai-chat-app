@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "context7": {
+            "command": "npx",
+            "args": ["-y", "@upstash/context7-mcp"]
+        },
+        "my-mcp-server": {
+            "url": "https://typescript-mcp-server-boilerplate-i-xi.vercel.app/api/mcp"
+        }
+    }
+}
