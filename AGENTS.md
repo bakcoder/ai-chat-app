@@ -1,111 +1,69 @@
-# AI 채팅(MCP Host & Client) 프로젝트 규칙
+# AI Chat App AGENTS
 
-## 목표 (GOAL)
+## Project Context & Operations
 
-* 깔끔하고 단순하며, 읽기 쉽고 모듈화된 코드를 작성한다.
-* 요구된 범위(MVP)**만 정확히 구현한다
-* 시니어 개발자처럼 **성능/보안/확장성**을 먼저 고민한다.
+- 비즈니스 목표: Next.js 기반의 간단한 AI 채팅 앱을 구현하고, Gemini 연동과 로컬 세션 저장을 중심으로 MVP를 발전시킨다.
+- 현재 확인된 스택: `Next.js 16`, `React 19`, `TypeScript`, `Tailwind CSS v4`, `ESLint`, `@google/genai`
+- 현재 구조: 앱 런타임은 `app/` 중심이며, 에이전트 설정과 MCP 구성은 `.cursor/` 아래에서 관리한다.
+- 패키지 매니저: `pnpm`
+- 환경 변수 파일: `.env.local`
+- 권장 런타임: Node.js LTS
 
----
+### Operational Commands
 
-## 개발 환경 (DEVELOPMENT ENVIRONMENT)
+- 의존성 설치: `pnpm install`
+- 개발 서버 실행: `pnpm dev`
+- 프로덕션 빌드: `pnpm build`
+- 프로덕션 실행: `pnpm start`
+- 린트 확인: `pnpm lint`
 
-* 의존성 설치: `pnpm install`
-* 개발 서버 실행: `pnpm dev`
-* 형식/품질:
+## Golden Rules
 
-  * 타입 체크: `pnpm typecheck`
-  * 린트/포맷: `pnpm lint && pnpm format`
-* 테스트 실행: `pnpm test`
-* 환경 변수: `.env.local` (예: `GEMINI_API_KEY`, `LLM_MODEL`)
+### Immutable
 
-> 권장 Node 버전: LTS
-> 패키지 매니저: `pnpm` 고정
+- 비밀값은 `.env.local`에만 두고 커밋하지 않는다.
+- Gemini API 키는 서버에서만 사용한다. 클라이언트 코드에 하드코딩하지 않는다.
+- 외부 API와 MCP 호출은 명시적인 서버 경계 또는 설정 파일을 통해 관리한다.
+- 존재하지 않는 스크립트, 라이브러리, 인프라를 이미 도입된 것처럼 문서화하지 않는다.
+- 모든 `AGENTS.md`는 500줄 미만으로 유지한다.
 
----
+### Do's
 
-## 프레임워크 규칙 (FRAMEWORK)
+- 현재 코드 구조와 실제 의존성을 기준으로 규칙을 작성한다.
+- 루트 `AGENTS.md`는 관제 문서로 유지하고, 고유한 작업 영역은 하위 `AGENTS.md`로 위임한다.
+- App Router 규칙에 맞춰 서버 컴포넌트와 클라이언트 컴포넌트를 분리한다.
+- Tailwind 유틸리티 중심으로 UI를 구성하고, 복잡도가 커지면 컴포넌트로 분리한다.
+- 규칙과 코드가 어긋나면 문서 또는 구현을 업데이트하도록 제안한다.
 
-* **Next.js(App Router, /app)** 단일 프레임워크로 FE/BE 통합.
-* 서버 로직은 **API Route**로 구현.
-* 스트리밍 응답은 **Route Handler(SSE)**로 제공 가능: `/api/chat/stream`.
-* 상태 관리: **필요 최소화**(React state + 간단 훅). 전역 스토어는 신중히 도입.
+### Don'ts
 
----
+- `pages/api` 기반 전제를 두지 않는다. 이 저장소는 `app/` 기반이다.
+- 테스트, 포맷터, 상태 관리 도구가 아직 없는데 이미 운영 중인 것처럼 적지 않는다.
+- `.cursor` 설정을 앱 런타임 규칙과 혼합하지 않는다.
+- 하위 폴더가 아직 없는데 불필요하게 `AGENTS.md`를 남발하지 않는다.
 
-## UI 규칙 (UI COMPONENTS)
+## Standards & References
 
-* UI 컴포넌트: **shadcn/ui**
-* 스타일링: **Tailwind CSS**
-* 아이콘: **Lucide**
-* 레이아웃 원칙:
+- 코딩 기준: 간결한 TypeScript, 함수형 React 컴포넌트, 읽기 쉬운 Tailwind 클래스
+- 구조 기준: 파일이 커지면 분리하고, 역할이 다른 규칙은 하위 `AGENTS.md`로 위임한다.
+- Git 전략: 기본 브랜치는 `main`을 사용한다.
+- 커밋 메시지: 명령형 한 줄 요약과 변경 이유를 우선한다.
+- 유지보수 정책: 규칙과 실제 구현 사이에 괴리가 생기면 해당 `AGENTS.md` 또는 코드를 갱신한다.
+- 참조 문서: `CLAUDE.md`는 이 파일을 참조하는 진입점으로 유지한다.
 
-  * 상단: 모델/서버 관리 진입
-  * 본문: 채팅 타임라인(유저/AI 버블 + MCP 결과 카드)
-  * 하단: 입력창(텍스트, 전송 버튼, **“/”는 Prompt 전용 힌트**)
-* 접근성: 시맨틱 마크업, 키보드 네비게이션, 명확한 로딩/에러 상태
+## Context Map (Action-Based Routing)
 
----
+- **[App Router UI 및 페이지 작업](./app/AGENTS.md)** — `app/page.tsx`, `app/layout.tsx`, `app/globals.css` 및 향후 `app/` 하위 세그먼트 수정 시.
+- **[Cursor 설정 및 스킬 작업](./.cursor/AGENTS.md)** — MCP 설정, Cursor 스킬, 에이전트 보조 설정 수정 시.
 
-## LLM & 스트리밍 (LLM & STREAMING)
+### Future Delegation
 
-* 기본 LLM: **Gemini API** (확장: Claude 등은 어댑터 추가로 대응)
-* 호출 위치: **서버 사이드 전용**(Route Handler). 클라이언트 직접 호출 금지.
-* 스트리밍: SSE로 토큰/청크 단위 표시, **취소(AbortController)** 지원.
-* 에러 매핑: 401/403/429/5xx → 통일된 에러 코드/메시지로 변환.
+- `app/api/`가 생기면 Route Handler, 스트리밍, 서버 측 Gemini 연동 규칙을 별도 `AGENTS.md`로 분리한다.
+- `components/`가 생기면 재사용 UI 규칙을 별도 `AGENTS.md`로 분리한다.
+- `lib/` 또는 유사한 서버 유틸 폴더가 생기면 API 클라이언트, 어댑터, 공용 유틸 규칙을 별도 `AGENTS.md`로 분리한다.
 
----
+## Output Style
 
-## 저장소 (STORAGE)
-
-* **MVP: localStorage** 사용
-
-  * 항목: MCP 서버 메타(민감값 제외 권장), 최근 세션(1개)
-  * 보안 경고 배너: “공용/공유PC에서 민감정보 저장 주의”
-* 서버 DB/ORM은 **도입하지 않음(MVP)**. 향후 필요 시 Drizzle/DB로 이관.
-
----
-
-## 인증 & 보안 (AUTH & SECURITY)
-
-* 키 보관: **`.env.local`** (리포지토리에 커밋 금지)
-* HTTPS 권장, CORS 화이트리스트 구성(필요 시)
-* 로깅: 민감필드 마스킹, 에러 샘플링
-* 클라이언트에서 외부 API(Gemini, MCP) **직접 호출 금지** → 서버 사이드 프록시/액션만 사용
-
----
-
-## 호스팅 & 인프라 (HOSTING & INFRA)
-
-* 배포: **Vercel** 권장(SSR/SSE 호환성 확인)
-
----
-
-## 파일 길이 (FILE LENGTH)
-
-* 모든 파일 **≤ 500 LOC**
-* 단일 책임 원칙(SRP). 공용 유틸/훅/컴포넌트로 분리
-
----
-
-## UI 디자인 원칙 (UI DESIGN PRINCIPLES)
-
-* 단순·깔끔·미니멀, 정보 위계 명확
-* **스트리밍 체감**을 최우선(빠른 첫 청크, 명확한 로딩 표시)
-* 오류는 **친절한 문구 + 재시도 버튼**으로
-
----
-
-## 데이터 변경 (DATA CHANGES)
-
-* **AI는 DB 변경 권한 없음**
-* 모든 변경은 사용자가 수행
-* 현재 MVP는 서버 DB 미사용. 저장/이관 제안은 가능하되 **직접 실행 금지**
-
----
-
-## 출력 스타일 (OUTPUT STYLE)
-
-* 짧고 명확한 문장
-* 충분한 맥락과 근거(가정/제약 포함)
-* 결론을 먼저, 대안/트레이드오프를 뒤에
+- 짧고 명확한 문장을 사용한다.
+- 결론과 실행 방안을 먼저 적는다.
+- 표와 이모지는 사용하지 않는다.
